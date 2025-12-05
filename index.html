@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Dream Basque Cheesecake</title>
@@ -80,7 +80,6 @@ class Game:
                 pos = pygame.mouse.get_pos()
                 self.drag_start = pos
                 self.check_buttons(pos)
-                # Removed self.check_drags(pos) - it was causing the freeze (method doesn't exist)
             if event.type == pygame.MOUSEBUTTONUP:
                 if self.drag_start:
                     end_pos = pygame.mouse.get_pos()
@@ -281,25 +280,29 @@ class Game:
         title_surf = font_large.render(title, True, BLACK)
         screen.blit(title_surf, (SCREEN_WIDTH//2 - title_surf.get_width()//2, 50))
 
-        # Next button (only if applicable)
-        if self.state not in ["menu", "done"]:
-            pygame.draw.rect(screen, GREEN, self.next_rect)
-            next_text = font_med.render("Next", True, WHITE)
-            screen.blit(next_text, (self.next_rect.x + 10, self.next_rect.y + 10))
-
-        # Shop
+        # Draw buttons conditionally
+        if self.state == "menu":
+            pygame.draw.rect(screen, GREEN, self.start_rect)
+            start_text = font_med.render("Start", True, WHITE)
+            screen.blit(start_text, (self.start_rect.x + 10, self.start_rect.y + 10))
+        elif self.state not in ["menu", "topping", "done"]:
+            if (self.state == "whisk_eggwhite" and self.step_drags["whisk"] >= self.min_whisk) or \
+               (self.state == "soften_cheese" and self.step_drags["cheese"] >= 10) or \
+               (self.state == "mix_batter" and self.batter_ready) or \
+               (self.state == "add_merengue" and self.merengue_ready) or \
+               (self.state == "bake" and self.bake_remaining <= 0):
+                pygame.draw.rect(screen, GREEN, self.next_rect)
+                next_text = font_med.render("Next", True, WHITE)
+                screen.blit(next_text, (self.next_rect.x + 10, self.next_rect.y + 10))
         if self.state == "topping":
             pygame.draw.rect(screen, BLUE, self.shop_rect)
             shop_text = font_small.render("Market (20 Coins)", True, WHITE)
             screen.blit(shop_text, (self.shop_rect.x + 5, self.shop_rect.y + 5))
-            inv_text = font_small.render(f"[Inventory]: {len(self.inventory)}", True, BLACK)
-            screen.blit(inv_text, (self.shop_rect.x, self.shop_rect.y + 40))
-
-        # Done / Restart
-        if self.state == "topping":
             pygame.draw.rect(screen, PURPLE, self.done_rect)
             done_text = font_med.render("Finish Cake", True, WHITE)
             screen.blit(done_text, (self.done_rect.x + 10, self.done_rect.y + 10))
+            inv_text = font_small.render(f"[Inventory]: {len(self.inventory)}", True, BLACK)
+            screen.blit(inv_text, (self.shop_rect.x, self.shop_rect.y + 40))
         if self.state == "done":
             pygame.draw.rect(screen, GREEN, self.restart_rect)
             restart_text = font_med.render("Restart", True, WHITE)
@@ -312,7 +315,7 @@ class Game:
         instr = {
             "whisk_eggwhite": "Drag repeatedly in bowl",
             "soften_cheese": "Drag repeatedly on cheese",
-            "mix_batter": "Drag ingredients to batter bowl, click to mix",
+            "mix_batter": "Drag ingredients to batter bowl",
             "add_merengue": "Drag meringue to batter bowl",
             "bake": "Wait or drag on oven to speed up",
             "topping": "Buy toppings then drag to cake"
@@ -321,12 +324,6 @@ class Game:
             inst_surf = font_small.render(instr[self.state], True, BLACK)
             screen.blit(inst_surf, (20, SCREEN_HEIGHT - 60))
 
-        # Draw start button in menu
-        if self.state == "menu":
-            pygame.draw.rect(screen, GREEN, self.start_rect)
-            start_text = font_med.render("Start", True, WHITE)
-            screen.blit(start_text, (self.start_rect.x + 10, self.start_rect.y + 10))
-
     def draw_finger(self):
         pos = pygame.mouse.get_pos()
         finger_surf = pygame.Surface((70, 70), pygame.SRCALPHA)
@@ -334,13 +331,12 @@ class Game:
         screen.blit(finger_surf, (pos[0]-35, pos[1]-35))
 
     def draw_rects(self):
-        # Define rects for buttons
+        # Define all rects unconditionally
+        self.start_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2, 200, 60)
         self.next_rect = pygame.Rect(SCREEN_WIDTH - 150, 100, 120, 50)
         self.shop_rect = pygame.Rect(SCREEN_WIDTH - 200, 200, 150, 60)
         self.done_rect = pygame.Rect(SCREEN_WIDTH - 200, 300, 150, 50)
         self.restart_rect = pygame.Rect(SCREEN_WIDTH//2 - 80, SCREEN_HEIGHT//2, 160, 50)
-        if self.state == "menu":
-            self.start_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2, 200, 60)
 
     def draw_inventory(self):
         for i, topping in enumerate(self.inventory):
@@ -357,8 +353,8 @@ class Game:
             screen.fill(WHITE)
             self.draw_workbench()
             self.draw_ingredients()
+            self.draw_rects()  # Moved before draw_ui to define rects first
             self.draw_ui()
-            self.draw_rects()
             if self.state == "topping":
                 self.draw_inventory()
             self.draw_finger()
@@ -369,6 +365,8 @@ class Game:
                 pygame.draw.rect(screen, BLUE, area, 3)
             elif self.state in ["mix_batter", "add_merengue"]:
                 pygame.draw.rect(screen, BLUE, self.get_area("batter"), 3)
+            if self.state == "add_merengue":
+                pygame.draw.rect(screen, BLUE, self.get_area("merengue"), 3)
 
             pygame.display.flip()
             clock.tick(FPS)
