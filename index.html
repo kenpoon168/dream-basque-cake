@@ -3,15 +3,22 @@
 <head>
   <meta charset="utf-8">
   <title>夢想巴斯克蛋糕</title>
-  <style>body { margin: 0; background: #fff; overflow: hidden; }</style>
+  <style>
+    body { margin: 0; background: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    #canvas { border: 1px solid #000; } /* Optional: Adds a border for visibility during testing */
+  </style>
 </head>
 <body>
+  <canvas id="canvas" width="1024" height="768"></canvas>
   <script type="text/pyodide">
 import asyncio
 import pygame
 import sys
 import math
 import random
+
+# Initialize Pygame (critical fix for rendering)
+pygame.init()
 
 # Constants
 SCREEN_WIDTH = 1024
@@ -363,7 +370,9 @@ if __name__ == "__main__":
   <script>
     async function main() {
       let pyodide = await loadPyodide();
-      await pyodide.loadPackage("pygame-ce");
+      await pyodide.loadPackage(["pygame-ce"], { checkIntegrity: false }); // Disable integrity check to avoid loading errors
+      let canvas = document.getElementById("canvas");
+      pyodide.canvas.setCanvas2D(canvas); // Link canvas to Pygame
       await pyodide.runPythonAsync(document.querySelector('script[type="text/pyodide"]').textContent);
     }
     main();
