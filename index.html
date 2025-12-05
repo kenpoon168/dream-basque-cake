@@ -17,22 +17,18 @@ import sys
 import math
 import random
 
-# Initialize Pygame (critical fix for rendering)
-pygame.mixer.pre_init(44100, 32, 2, 1024)  # Best practice, even without sound
 pygame.init()
 
-# Constants
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 768
 FPS = 60
 
-# Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BROWN = (139, 69, 19)
 GREEN = (34, 139, 34)
 GRAY = (128, 128, 128)
-PINK = (255, 192, 203, 128)  # Semi-transparent pink for finger
+PINK = (255, 192, 203, 128)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
 CREAM = (255, 253, 208)
@@ -40,7 +36,6 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 PURPLE = (128, 0, 128)
 
-# Fonts - Use default as Pyodide may not have custom fonts
 font_large = pygame.font.Font(None, 48)
 font_med = pygame.font.Font(None, 32)
 font_small = pygame.font.Font(None, 24)
@@ -51,7 +46,7 @@ clock = pygame.time.Clock()
 
 class Game:
     def __init__(self):
-        self.state = "menu"  # menu, whisk_eggwhite, soften_cheese, mix_batter, add_merengue, bake, topping, done
+        self.state = "menu"
         self.reset_game()
 
     def reset_game(self):
@@ -62,14 +57,13 @@ class Game:
         self.ingredients_in_batter = {"yolk": False, "flour": False, "cheese": False}
         self.merengue_ready = False
         self.batter_ready = False
-        self.bake_remaining = 30.0  # Scaled to 30 seconds real time
+        self.bake_remaining = 30.0
         self.bake_start = 0
         self.coins = 100
-        self.inventory = []  # List of toppings: ('strawberry', price=10), etc.
+        self.inventory = []
         self.toppings_placed = 0
         self.coupon_granted = False
         self.drag_start = None
-        self.current_action = None
         self.last_update = pygame.time.get_ticks()
 
     def handle_events(self):
@@ -120,9 +114,7 @@ class Game:
     def process_drag(self, start, end):
         dx = abs(end[0] - start[0])
         dy = abs(end[1] - start[1])
-        if dx + dy < 20:  # Min drag distance
-            return
-        dist = math.sqrt(dx**2 + dy**2)
+        # Removed min distance check for better responsiveness
         if self.state == "whisk_eggwhite":
             whisk_rect = self.get_area("whisk")
             if whisk_rect.collidepoint(start) or whisk_rect.collidepoint(end):
@@ -143,7 +135,7 @@ class Game:
             oven_rect = self.get_area("bake")
             if oven_rect.collidepoint(end):
                 self.step_drags["bake"] += 1
-                self.bake_remaining = max(0, self.bake_remaining - 2.0)  # Speed up 2 sec per drag
+                self.bake_remaining = max(0, self.bake_remaining - 2.0)
         elif self.state == "topping":
             self.handle_topping_drag(end)
 
@@ -163,7 +155,7 @@ class Game:
         cake_rect = self.get_area("cake")
         if cake_rect.collidepoint(end) and self.inventory:
             topping = self.inventory.pop(0)
-            self.coins += 10  # Earn coins? Wait, no, but for demo
+            self.coins += 10
             self.toppings_placed += 1
 
     def update_thickness(self):
@@ -179,14 +171,13 @@ class Game:
                 self.bake_remaining = 0
 
     def toggle_shop(self):
-        # Simple: add random topping to inventory for 20 coins
         if self.coins >= 20:
             self.coins -= 20
             self.inventory.append("Strawberry")
 
     def finish_cake(self):
         self.coupon_granted = True
-        self.coins += 50  # Reward
+        self.coins += 50
         self.state = "done"
 
     def get_area(self, area_type):
@@ -196,74 +187,64 @@ class Game:
             "yolk": pygame.Rect(50, 200, 60, 60),
             "flour": pygame.Rect(50, 300, 80, 60),
             "batter": pygame.Rect(400, 250, 150, 120),
-            "merengue": pygame.Rect(150, 200, 120, 120),  # Reuse whisk area
+            "merengue": pygame.Rect(150, 200, 120, 120),
             "bake": pygame.Rect(650, 250, 120, 150),
             "cake": pygame.Rect(450, 300, 200, 200),
         }
         return areas.get(area_type, pygame.Rect(0,0,0,0))
 
     def draw_workbench(self):
-        # Workbench background
         pygame.draw.rect(screen, BROWN, (0, 400, SCREEN_WIDTH, SCREEN_HEIGHT-400))
-        pygame.draw.rect(screen, GREEN, (0, 400, SCREEN_WIDTH, 20))  # Edge
+        pygame.draw.rect(screen, GREEN, (0, 400, SCREEN_WIDTH, 20))
 
     def draw_ingredients(self):
-        # Egg white bowl for whisk/merengue
         whisk_r = self.get_area("whisk")
         pygame.draw.ellipse(screen, CREAM, whisk_r.inflate(20,10))
         pygame.draw.ellipse(screen, WHITE, whisk_r, 5)
         foam_level = min(1, self.step_drags["whisk"] / self.max_whisk)
-        pygame.draw.rect(screen, WHITE, (whisk_r.x+10, whisk_r.y + 80 - 70*foam_level, whisk_r.w-20, 70*foam_level))
+        pygame.draw.rect(screen, WHITE, (whisk_r.x+10, whisk_r.y + whisk_r.h - int(whisk_r.h * foam_level), whisk_r.w-20, int(whisk_r.h * foam_level)))  # Fill from bottom, full height
 
-        # Cheese block
         cheese_r = self.get_area("cheese")
         col = YELLOW if self.step_drags["cheese"] >= 10 else ORANGE
         pygame.draw.rect(screen, col, cheese_r)
         pygame.draw.rect(screen, BLACK, cheese_r, 3)
 
-        # Yolk
         yolk_r = self.get_area("yolk")
         pygame.draw.circle(screen, ORANGE, yolk_r.center, 25)
 
-        # Flour
         flour_r = self.get_area("flour")
         pygame.draw.rect(screen, WHITE, flour_r)
         pygame.draw.rect(screen, GRAY, flour_r, 3)
         pygame.draw.lines(screen, GRAY, False, [(flour_r.x+10,flour_r.y+10),(flour_r.x+flour_r.w-10,flour_r.y+flour_r.h-10)], 2)
         pygame.draw.lines(screen, GRAY, False, [(flour_r.x+10,flour_r.y+flour_r.h-10),(flour_r.x+flour_r.w-10,flour_r.y+10)], 2)
 
-        # Batter bowl
         batter_r = self.get_area("batter")
         pygame.draw.ellipse(screen, GRAY, batter_r.inflate(30,20))
         pygame.draw.ellipse(screen, BLACK, batter_r, 5)
         if self.batter_ready:
             pygame.draw.rect(screen, CREAM, (batter_r.x+15, batter_r.y + 60, batter_r.w-30, 50))
 
-        # Oven
         oven_r = self.get_area("bake")
         pygame.draw.rect(screen, BLACK, oven_r.inflate(10,20))
         pygame.draw.rect(screen, GRAY, oven_r)
-        pygame.draw.rect(screen, RED, (oven_r.x + 10, oven_r.y + 10, 20, oven_r.h - 20))  # Heat
+        pygame.draw.rect(screen, RED, (oven_r.x + 10, oven_r.y + 10, 20, oven_r.h - 20))
         progress = 1 - self.bake_remaining / 30.0 if self.state == "bake" else 1
         pygame.draw.rect(screen, ORANGE, (oven_r.x + 5, oven_r.y + oven_r.h - 20, int(oven_r.w * progress) - 10, 15))
 
-        # Cake after bake
         if self.state in ["topping", "done"]:
             cake_r = self.get_area("cake")
             pygame.draw.ellipse(screen, CREAM, cake_r)
-            pygame.draw.ellipse(screen, BROWN, cake_r, 8)  # Burnt top
+            pygame.draw.ellipse(screen, BROWN, cake_r, 8)
             text = font_small.render(f"Thickness: {self.thickness}mm", True, BLACK)
             screen.blit(text, (cake_r.centerx - 50, cake_r.centery))
 
     def draw_ui(self):
-        # Coins
         coin_text = font_med.render(f"Coins: {self.coins}", True, BLACK)
         screen.blit(coin_text, (20, 20))
 
-        # Step title (English for font compatibility)
         titles = {
             "menu": "Dream Basque Cheesecake",
-            "whisk_eggwhite": "1. Whisk Egg White (Drag {}/100-1000)", 
+            "whisk_eggwhite": "1. Whisk Egg White (Drag {}/100-1000)",
             "soften_cheese": "2. Soften Cheese (Drag {}/10)",
             "mix_batter": "3. Mix Yolk, Flour, Cheese",
             "add_merengue": "5. Add Egg White",
@@ -280,17 +261,24 @@ class Game:
         title_surf = font_large.render(title, True, BLACK)
         screen.blit(title_surf, (SCREEN_WIDTH//2 - title_surf.get_width()//2, 50))
 
-        # Draw buttons conditionally
+        # Debug drag count
+        if self.state in ["whisk_eggwhite", "soften_cheese", "bake"]:
+            debug_text = font_small.render(f"Drags: {self.step_drags.get(self.state.split('_')[1], 0)}", True, RED)
+            screen.blit(debug_text, (SCREEN_WIDTH//2 - 50, 100))
+
         if self.state == "menu":
             pygame.draw.rect(screen, GREEN, self.start_rect)
             start_text = font_med.render("Start", True, WHITE)
             screen.blit(start_text, (self.start_rect.x + 10, self.start_rect.y + 10))
-        elif self.state not in ["menu", "topping", "done"]:
-            if (self.state == "whisk_eggwhite" and self.step_drags["whisk"] >= self.min_whisk) or \
-               (self.state == "soften_cheese" and self.step_drags["cheese"] >= 10) or \
-               (self.state == "mix_batter" and self.batter_ready) or \
-               (self.state == "add_merengue" and self.merengue_ready) or \
-               (self.state == "bake" and self.bake_remaining <= 0):
+        if self.state not in ["menu", "topping", "done"]:
+            show_next = (
+                (self.state == "whisk_eggwhite" and self.step_drags["whisk"] >= self.min_whisk) or
+                (self.state == "soften_cheese" and self.step_drags["cheese"] >= 10) or
+                (self.state == "mix_batter" and self.batter_ready) or
+                (self.state == "add_merengue" and self.merengue_ready) or
+                (self.state == "bake" and self.bake_remaining <= 0)
+            )
+            if show_next:
                 pygame.draw.rect(screen, GREEN, self.next_rect)
                 next_text = font_med.render("Next", True, WHITE)
                 screen.blit(next_text, (self.next_rect.x + 10, self.next_rect.y + 10))
@@ -311,7 +299,6 @@ class Game:
                 coupon_text = font_med.render("Coupon Granted! Redeem for Real Cake (1 Year Valid, Transferable)", True, BLACK)
                 screen.blit(coupon_text, (100, SCREEN_HEIGHT - 100))
 
-        # Instructions (English for font compatibility)
         instr = {
             "whisk_eggwhite": "Drag repeatedly in bowl",
             "soften_cheese": "Drag repeatedly on cheese",
@@ -331,7 +318,6 @@ class Game:
         screen.blit(finger_surf, (pos[0]-35, pos[1]-35))
 
     def draw_rects(self):
-        # Define all rects unconditionally
         self.start_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2, 200, 60)
         self.next_rect = pygame.Rect(SCREEN_WIDTH - 150, 100, 120, 50)
         self.shop_rect = pygame.Rect(SCREEN_WIDTH - 200, 200, 150, 60)
@@ -353,13 +339,12 @@ class Game:
             screen.fill(WHITE)
             self.draw_workbench()
             self.draw_ingredients()
-            self.draw_rects()  # Moved before draw_ui to define rects first
+            self.draw_rects()
             self.draw_ui()
             if self.state == "topping":
                 self.draw_inventory()
             self.draw_finger()
 
-            # Draw action areas outline if in state
             if self.state in ["whisk_eggwhite", "soften_cheese"]:
                 area = self.get_area(self.state.split('_')[1])
                 pygame.draw.rect(screen, BLUE, area, 3)
@@ -370,19 +355,19 @@ class Game:
 
             pygame.display.flip()
             clock.tick(FPS)
-            await asyncio.sleep(0)  # Yield to browser event loop
+            await asyncio.sleep(0)
 
 if __name__ == "__main__":
     game = Game()
-    await game.run()  # Use await directly (fixes event loop error)
+    await game.run()
   </script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
   <script>
     async function main() {
       let pyodide = await loadPyodide();
-      await pyodide.loadPackage(["pygame-ce"], { checkIntegrity: false }); // Disable integrity check to avoid loading errors
+      await pyodide.loadPackage(["pygame-ce"], { checkIntegrity: false });
       let canvas = document.getElementById("canvas");
-      pyodide.canvas.setCanvas2D(canvas); // Link canvas to Pygame
+      pyodide.canvas.setCanvas2D(canvas);
       await pyodide.runPythonAsync(document.querySelector('script[type="text/pyodide"]').textContent);
     }
     main();
