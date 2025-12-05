@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="utf-8">
-  <title>夢想巴斯克蛋糕</title>
+  <title>Dream Basque Cheesecake</title>
   <style>
     body { margin: 0; background: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
     #canvas { border: 1px solid #000; max-width: 100%; max-height: 100%; } /* Scales for mobile */
@@ -46,7 +46,7 @@ font_med = pygame.font.Font(None, 32)
 font_small = pygame.font.Font(None, 24)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("夢想巴斯克蛋糕 - Dream Basque Cheesecake Game")
+pygame.display.set_caption("Dream Basque Cheesecake Game")
 clock = pygame.time.Clock()
 
 class Game:
@@ -80,7 +80,7 @@ class Game:
                 pos = pygame.mouse.get_pos()
                 self.drag_start = pos
                 self.check_buttons(pos)
-                self.check_drags(pos)
+                # Removed self.check_drags(pos) - it was causing the freeze (method doesn't exist)
             if event.type == pygame.MOUSEBUTTONUP:
                 if self.drag_start:
                     end_pos = pygame.mouse.get_pos()
@@ -135,6 +135,11 @@ class Game:
                 self.step_drags["cheese"] += 1
         elif self.state == "mix_batter":
             self.handle_mix_drag(start, end)
+        elif self.state == "add_merengue":
+            merengue_rect = self.get_area("merengue")
+            batter_rect = self.get_area("batter")
+            if merengue_rect.collidepoint(start) and batter_rect.collidepoint(end):
+                self.merengue_ready = True
         elif self.state == "bake":
             oven_rect = self.get_area("bake")
             if oven_rect.collidepoint(end):
@@ -146,11 +151,11 @@ class Game:
     def handle_mix_drag(self, start, end):
         batter_rect = self.get_area("batter")
         if batter_rect.collidepoint(end):
-            if self.yolk_rect.collidepoint(start):
+            if self.get_area("yolk").collidepoint(start):
                 self.ingredients_in_batter["yolk"] = True
-            elif self.flour_rect.collidepoint(start):
+            elif self.get_area("flour").collidepoint(start):
                 self.ingredients_in_batter["flour"] = True
-            elif self.cheese_rect.collidepoint(start):
+            elif self.get_area("cheese").collidepoint(start):
                 self.ingredients_in_batter["cheese"] = True
         if all(self.ingredients_in_batter.values()):
             self.batter_ready = True
@@ -248,27 +253,27 @@ class Game:
             cake_r = self.get_area("cake")
             pygame.draw.ellipse(screen, CREAM, cake_r)
             pygame.draw.ellipse(screen, BROWN, cake_r, 8)  # Burnt top
-            text = font_small.render(f"厚度: {self.thickness}mm", True, BLACK)
+            text = font_small.render(f"Thickness: {self.thickness}mm", True, BLACK)
             screen.blit(text, (cake_r.centerx - 50, cake_r.centery))
 
     def draw_ui(self):
         # Coins
-        coin_text = font_med.render(f"O幣: {self.coins}", True, BLACK)
+        coin_text = font_med.render(f"Coins: {self.coins}", True, BLACK)
         screen.blit(coin_text, (20, 20))
 
-        # Step title
+        # Step title (English for font compatibility)
         titles = {
-            "menu": "夢想巴斯克蛋糕",
-            "whisk_eggwhite": "1. 打發蛋白霜 (拖動 {}/100-1000)", 
-            "soften_cheese": "2. 軟化奶油乳酪 (拖動 {}/10)",
-            "mix_batter": "3. 混合蛋黃、麵粉、乳酪",
-            "add_merengue": "5. 加入蛋白霜",
-            "bake": "6. 烘烤 (剩餘: {:.1f}s 或拖動加速)",
-            "topping": "7. 添加配料",
-            "done": "完成！"
+            "menu": "Dream Basque Cheesecake",
+            "whisk_eggwhite": "1. Whisk Egg White (Drag {}/100-1000)", 
+            "soften_cheese": "2. Soften Cheese (Drag {}/10)",
+            "mix_batter": "3. Mix Yolk, Flour, Cheese",
+            "add_merengue": "5. Add Egg White",
+            "bake": "6. Bake (Remaining: {:.1f}s or Drag to Speed Up)",
+            "topping": "7. Add Toppings",
+            "done": "Done!"
         }
         title = titles.get(self.state, "")
-        if "拖動" in title:
+        if "Drag" in title:
             cnt = self.step_drags.get(self.state.split('_')[1], 0)
             title = title.format(cnt)
         elif self.state == "bake":
@@ -276,45 +281,51 @@ class Game:
         title_surf = font_large.render(title, True, BLACK)
         screen.blit(title_surf, (SCREEN_WIDTH//2 - title_surf.get_width()//2, 50))
 
-        # Next button
-        if "next_rect" in dir(self):
+        # Next button (only if applicable)
+        if self.state not in ["menu", "done"]:
             pygame.draw.rect(screen, GREEN, self.next_rect)
-            next_text = font_med.render("下一步", True, WHITE)
+            next_text = font_med.render("Next", True, WHITE)
             screen.blit(next_text, (self.next_rect.x + 10, self.next_rect.y + 10))
 
         # Shop
         if self.state == "topping":
             pygame.draw.rect(screen, BLUE, self.shop_rect)
-            shop_text = font_small.render("配料市場 (20 O幣)", True, WHITE)
+            shop_text = font_small.render("Market (20 Coins)", True, WHITE)
             screen.blit(shop_text, (self.shop_rect.x + 5, self.shop_rect.y + 5))
-            inv_text = font_small.render(f"[我的寶藏]: {len(self.inventory)}", True, BLACK)
+            inv_text = font_small.render(f"[Inventory]: {len(self.inventory)}", True, BLACK)
             screen.blit(inv_text, (self.shop_rect.x, self.shop_rect.y + 40))
 
         # Done / Restart
         if self.state == "topping":
             pygame.draw.rect(screen, PURPLE, self.done_rect)
-            done_text = font_med.render("完成蛋糕", True, WHITE)
+            done_text = font_med.render("Finish Cake", True, WHITE)
             screen.blit(done_text, (self.done_rect.x + 10, self.done_rect.y + 10))
         if self.state == "done":
             pygame.draw.rect(screen, GREEN, self.restart_rect)
-            restart_text = font_med.render("再做一個", True, WHITE)
+            restart_text = font_med.render("Restart", True, WHITE)
             screen.blit(restart_text, (self.restart_rect.x + 10, self.restart_rect.y + 10))
             if self.coupon_granted:
-                coupon_text = font_med.render("優惠券獲得！可兌換實體蛋糕 (1年有效，可轉讓)", True, BLACK)
+                coupon_text = font_med.render("Coupon Granted! Redeem for Real Cake (1 Year Valid, Transferable)", True, BLACK)
                 screen.blit(coupon_text, (100, SCREEN_HEIGHT - 100))
 
-        # Instructions
+        # Instructions (English for font compatibility)
         instr = {
-            "whisk_eggwhite": "在碗中反覆拖動滑鼠",
-            "soften_cheese": "在乳酪上反覆拖動滑鼠",
-            "mix_batter": "將材料拖到麵糊碗中，點擊混合",
-            "add_merengue": "將蛋白霜拖到麵糊碗",
-            "bake": "等待或在烤箱拖動加速",
-            "topping": "購買配料後拖到蛋糕上"
+            "whisk_eggwhite": "Drag repeatedly in bowl",
+            "soften_cheese": "Drag repeatedly on cheese",
+            "mix_batter": "Drag ingredients to batter bowl, click to mix",
+            "add_merengue": "Drag meringue to batter bowl",
+            "bake": "Wait or drag on oven to speed up",
+            "topping": "Buy toppings then drag to cake"
         }
         if self.state in instr:
             inst_surf = font_small.render(instr[self.state], True, BLACK)
             screen.blit(inst_surf, (20, SCREEN_HEIGHT - 60))
+
+        # Draw start button in menu
+        if self.state == "menu":
+            pygame.draw.rect(screen, GREEN, self.start_rect)
+            start_text = font_med.render("Start", True, WHITE)
+            screen.blit(start_text, (self.start_rect.x + 10, self.start_rect.y + 10))
 
     def draw_finger(self):
         pos = pygame.mouse.get_pos()
@@ -356,7 +367,7 @@ class Game:
             if self.state in ["whisk_eggwhite", "soften_cheese"]:
                 area = self.get_area(self.state.split('_')[1])
                 pygame.draw.rect(screen, BLUE, area, 3)
-            elif self.state == "mix_batter":
+            elif self.state in ["mix_batter", "add_merengue"]:
                 pygame.draw.rect(screen, BLUE, self.get_area("batter"), 3)
 
             pygame.display.flip()
